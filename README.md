@@ -53,6 +53,30 @@ journalctl -u xray -f      # 实时日志
 - 住宅 IP / 原生 IP：通常可直接解锁
 - 数据中心 IP（常见 VPS）：大概率被风控，建议在服务器上叠加 Cloudflare WARP 出口
 
+## 香港中转加速（relay-gost-hk.sh）
+
+当落地机（如台湾节点）线路较差、晚高峰拥堵时，可用一台**优质线路的香港机做中转**，在保留落地机出口 IP（AI 解锁不受影响）的同时改善速度。
+
+```
+客户端 → 香港中转机(gost 转发) → 台湾落地机(出口) → 目标
+```
+
+出口仍是落地机，目标网站（含 Cursor/ChatGPT）识别到的是**落地机 IP**，不是香港。
+
+**在香港机上运行：**
+
+```bash
+wget -O relay-gost-hk.sh https://raw.githubusercontent.com/LIULIBAO123/VLESS-Reality-XTLS/main/relay-gost-hk.sh
+chmod +x relay-gost-hk.sh
+sudo bash relay-gost-hk.sh
+```
+
+按提示输入落地机 IP、端口即可。脚本会用 gost 做 TCP/UDP 透明转发并注册为 systemd 服务（`gost-relay`）。
+
+**客户端改动：** 复制原落地节点，只把 `地址` 从落地机 IP 改成香港机 IP，端口改成香港监听端口；`UUID / 公钥 / shortId / SNI / flow` **全部不变**（SNI 仍填落地节点原伪装域名）。
+
+> ⚠️ 方向不能反：落地机必须是最后一跳（出口），香港只做中转。
+
 ## 说明
 
 本脚本仅供学习与合法网络调试用途，请遵守所在国家/地区的法律法规。
