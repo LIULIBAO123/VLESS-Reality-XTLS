@@ -18,7 +18,9 @@ warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
 check_root() {
-    [[ $EUID -ne 0 ]] && error "请使用 root 用户运行此脚本: sudo bash $0"
+    if [[ $EUID -ne 0 ]]; then
+        error "请使用 root 用户运行此脚本: sudo bash $0"
+    fi
 }
 
 check_os() {
@@ -54,12 +56,16 @@ generate_keys() {
     PRIVATE_KEY=$(echo "$KEY_OUTPUT" | grep 'Private' | awk '{print $NF}')
     PUBLIC_KEY=$(echo "$KEY_OUTPUT" | grep 'Public' | awk '{print $NF}')
 
-    [[ -z "$PRIVATE_KEY" || -z "$PUBLIC_KEY" ]] && error "密钥生成失败"
+    if [[ -z "$PRIVATE_KEY" || -z "$PUBLIC_KEY" ]]; then
+        error "密钥生成失败"
+    fi
 }
 
 generate_uuid() {
     UUID=$(xray uuid)
-    [[ -z "$UUID" ]] && UUID=$(cat /proc/sys/kernel/random/uuid)
+    if [[ -z "$UUID" ]]; then
+        UUID=$(cat /proc/sys/kernel/random/uuid)
+    fi
 }
 
 generate_short_id() {
@@ -68,7 +74,9 @@ generate_short_id() {
 
 get_server_ip() {
     SERVER_IP=$(curl -4 -s --max-time 5 ifconfig.me || curl -4 -s --max-time 5 ip.sb || echo "")
-    [[ -z "$SERVER_IP" ]] && error "无法获取服务器公网 IP"
+    if [[ -z "$SERVER_IP" ]]; then
+        error "无法获取服务器公网 IP"
+    fi
 }
 
 select_dest() {
@@ -108,7 +116,9 @@ select_port() {
         warn "端口 ${PORT} 已被占用:"
         ss -tlnp | grep ":${PORT} "
         read -rp "是否继续? [y/N]: " confirm
-        [[ "$confirm" != "y" && "$confirm" != "Y" ]] && error "已取消"
+        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+            error "已取消"
+        fi
     fi
 }
 
@@ -245,8 +255,8 @@ setup_firewall() {
         ufw allow "$PORT"/tcp > /dev/null 2>&1 && info "UFW 已放行端口 $PORT"
     fi
     if command -v firewall-cmd &>/dev/null; then
-        firewall-cmd --permanent --add-port="$PORT"/tcp > /dev/null 2>&1
-        firewall-cmd --reload > /dev/null 2>&1
+        firewall-cmd --permanent --add-port="$PORT"/tcp > /dev/null 2>&1 || true
+        firewall-cmd --reload > /dev/null 2>&1 || true
         info "firewalld 已放行端口 $PORT"
     fi
 }
