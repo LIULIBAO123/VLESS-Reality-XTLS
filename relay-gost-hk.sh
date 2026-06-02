@@ -29,7 +29,7 @@ check_root() {
 install_deps() {
     info "安装依赖..."
     apt-get update -qq
-    apt-get install -y -qq curl wget gzip > /dev/null 2>&1 || true
+    apt-get install -y -qq curl wget gzip iproute2 > /dev/null 2>&1 || true
 }
 
 detect_arch() {
@@ -161,14 +161,27 @@ setup_firewall() {
 
 start_service() {
     info "启动中转服务..."
+
+    # Clean up stale gost processes before replacing the relay target/port.
+    systemctl stop gost-relay > /dev/null 2>&1 || true
+    pkill -f "$GOST_BIN" > /dev/null 2>&1 || true
+    systemctl reset-failed gost-relay > /dev/null 2>&1 || true
+
     systemctl daemon-reload
     systemctl enable gost-relay > /dev/null 2>&1
     systemctl restart gost-relay
     sleep 2
-    if systemctl is-active --quiet gost-relay; then
-        info "gost 中转运行中 ✓"
-    else
+
+    if ! systemctl is-active --quiet gost-relay; then
         error "启动失败，请检查: journalctl -u gost-relay --no-pager -n 20"
+    fi
+
+    if ss -tlnp 2>/dev/null | grep -q ":${LISTEN_PORT} "; then
+        info "gost 中转运行中，端口 ${LISTEN_PORT} 已监听 ✓"
+    else
+        warn "gost 服务已启动，但未检测到 TCP ${LISTEN_PORT} 监听"
+        warn "请检查: ss -tlnp | grep ${LISTEN_PORT}"
+        error "监听端口校验失败"
     fi
 }
 
